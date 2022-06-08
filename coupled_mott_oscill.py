@@ -3,13 +3,13 @@ import random as r
 import matplotlib.pyplot as plt
 
 # Constants
-Rs      = 0.5   # Sample resistance
-R0      = 1.0   # Load resistance
+Rs      = 0.3   # Sample resistance
+R0      = 0.1   # Load resistance
 C0      = 0.0   # Coupling capacitance
-Cp      = 8.0   # Sample capacitance
-Vl_th   = 20.0  # Left sample V threshold
-Vr_th   = 18.0  # Right sample V threshold
-dV      = 1.5   # Prob. distr. width
+Cp      = 1.5   # Sample capacitance
+Vl_th   = 10.0  # Left sample V threshold
+Vr_th   = 10.0  # Right sample V threshold
+dV      = 0.1   # Prob. distr. width
 dt      = 1.0   # Time-step
 sim_len = 100   # Durantion of sim
 
@@ -23,13 +23,13 @@ I   = 1.0*np.ones(sim_len)      # Input current
 t   = 1.0*np.arange(0, sim_len) # Time-steps
 
 # Counters
-tls = 1.0   # Time since last spike of left device
-trs = 1.0   # Time since last spike of right device
+tls = 0.0   # Time since last spike of left device
+trs = 0.0   # Time since last spike of right device
 
 # Pre-factors
 a   = R0*(Rs*Cp + dt)/(R0*Rs*Cp + dt*(R0 - Rs))
 b   = Rs*Cp/(2*R0*(Rs*Cp + dt))
-c   = Rs*Cp/(Rs*Cp + dt)
+c   = Rs*Cp/(-Rs*Cp + dt)
 
 # Lists
 Il  = []    # Left branch current
@@ -52,14 +52,17 @@ def getI0_new(V0_new, V0_old):
     return (V0_new - V0_old)*C0
     
 def getVcl_new(Il_new, I0_new, Vcl_old):
-    return Vcl_0 if Cp == 0 else Rs*Cp/(Rs*Cp - 1.)*(Vcl_old + (Il_new + I0_new)/Cp)
+    return Vcl_0 if Cp == 0 else Rs*Cp/(Rs*Cp + dt)*(Vcl_old + (Il_new + I0_new)/Cp)
     
 def getVcr_new(Ir_new, I0_new, Vcr_old):
-    return Vcr_0 if Cp == 0 else Rs*Cp/(Rs*Cp - 1.)*(Vcr_old + (Ir_new - I0_new)/Cp)
+    return Vcr_0 if Cp == 0 else Rs*Cp/(Rs*Cp + dt)*(Vcr_old + (Ir_new - I0_new)/Cp)
     
 def getP(V, ts, V_th, dV):
-    return 1. - 1./(1. - ts*np.exp((V - V_th)/dV))
-    
+    if (V - V_th) < 0.:
+        return 1. - 1./(1. + ts*np.exp((V - V_th)/dV))
+    else:
+        e = np.exp(-(V - V_th)/dV)
+        return 1. - e/(e + ts)  
     
 for I_new in I:
     if len(Vcl) == 0:
@@ -76,15 +79,15 @@ for I_new in I:
     
     rand = r.random()
     
-    if (Vcl[-1] >= Vl_th or rand < getP(Vcl[-1], tls, Vl_th, dV)):
+    if (rand < getP(Vcl[-1], tls, Vl_th, dV)):
         Vcl[-1] = Vcl_0
-        tls = 1.
+        tls = 0.
     else:
         tls = tls + 1.
         
-    if (Vcr[-1] >= Vr_th or rand < getP(Vcr[-1], trs, Vr_th, dV)):
+    if (rand < getP(Vcr[-1], trs, Vr_th, dV)):
         Vcr[-1] = Vcr_0
-        trs = 1.
+        trs = 0.
     else:
         trs = trs + 1.
 
