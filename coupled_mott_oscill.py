@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 # Constants
 Rs      = 1.0   # Sample resistance
 R0      = 1.0   # Load resistance
-C0      = 1.2   # Coupling capacitance
+C0      = 1.0   # Coupling capacitance
 Cp      = 0.5   # Sample capacitance
 Vl_th   = 0.4   # Left sample V threshold
 Vr_th   = .36   # Right sample V threshold
@@ -64,6 +64,8 @@ def getP(V, ts, V_th, dV):
         e = np.exp(-(V - V_th)/dV) 
         return 1. - e/(e + ts/dt) 
 
+    
+
 for I_new in I:
     if len(Vcl) == 0:
         Vcl.append(Vcl_0)
@@ -76,31 +78,16 @@ for I_new in I:
     I0.append(getI0_new(V0[-1], V0[-2]))
     Vcl.append(getVcl_new(Il[-1], I0[-1], Vcl[-1]))
     Vcr.append(getVcr_new(Ir[-1], I0[-1], Vcr[-1]))
-    
-    if tls == 0. and len(Vcl) > 2:
-        Il.pop(-1)
-        Vcl.pop(-1)
-        I0.pop(-1)
-        V0.pop(-1)
-        Ir.pop(-2)
-        Vcr.pop(-2)
-    elif trs == 0. and len(Vcl) > 2:
-        Il.pop(-2)
-        Vcl.pop(-2)
-        I0.pop(-1)
-        V0.pop(-1)
-        Ir.pop(-1)
-        Vcr.pop(-1)
         
     rand = r.random()    
-    if (rand < getP(Vcl[-1], tls, Vl_th, dV)): 
-        Vcl[-1] = Vcl_0    
+    if (rand < getP(Vcl[-1], tls, Vl_th, dV)):
+        Vcl[-1] = Vcl_0
         tls = 0.
     else:
         tls = tls + 1.
         
     if (rand < getP(Vcr[-1], trs, Vr_th, dV)):
-        Vcl[-1] = Vcl_0
+        Vcr[-1] = Vcr_0
         trs = 0.
     else:
         trs = trs + 1.
