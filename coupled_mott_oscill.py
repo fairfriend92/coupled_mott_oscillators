@@ -3,15 +3,15 @@ import random as r
 import matplotlib.pyplot as plt
 
 # Constants
-Rs      = 1.0   # Sample resistance
-R0      = 1.0   # Load resistance
-C0      = 1.0   # Coupling capacitance
-Cp      = 0.5   # Sample capacitance
-Vl_th   = 0.4   # Left sample V threshold
-Vr_th   = .36   # Right sample V threshold
-dV      = .01   # Prob. distr. width
-dt      = .01   # Time-step
-sim_len = 300   # Durantion of sim
+Rs      = 1.00  # Sample resistance
+R0      = 1.00  # Load resistance
+C0      = 0.50  # Coupling capacitance
+Cp      = 0.50  # Sample capacitance
+Vl_th   = 0.50  # Left sample V threshold
+Vr_th   = 0.45  # Right sample V threshold
+dV      = 0.01  # Prob. distr. width
+dt      = 0.0001  # Time-step
+sim_len = 20000  # Durantion of sim
 
 # Starting values
 Vcl_0   = 0.0   # Initial left sample capacitor voltage
@@ -64,7 +64,13 @@ def getP(V, ts, V_th, dV):
         e = np.exp(-(V - V_th)/dV) 
         return 1. - e/(e + ts/dt) 
 
-    
+def solveCircuit(Vcl_old, Vcr_old):
+    Il.append(getIl_new(I_new, Vcl_old, Vcr_old, V0[-1]))
+    Ir.append(getIr_new(I_new, Vcl_old, Vcr_old, V0[-1]))
+    V0.append(getV0_new(I_new, Il[-1], Ir[-1], Vcl_old, Vcr_old, V0[-1]))
+    I0.append(getI0_new(V0[-1], V0[-2]))
+    Vcl.append(getVcl_new(Il[-1], I0[-1], Vcl_old))
+    Vcr.append(getVcr_new(Ir[-1], I0[-1], Vcr_old))
 
 for I_new in I:
     if len(Vcl) == 0:
@@ -72,23 +78,30 @@ for I_new in I:
         Vcr.append(Vcr_0)
         V0.append(V0_0)
     
-    Il.append(getIl_new(I_new, Vcl[-1], Vcr[-1], V0[-1]))
-    Ir.append(getIr_new(I_new, Vcl[-1], Vcr[-1], V0[-1]))
-    V0.append(getV0_new(I_new, Il[-1], Ir[-1], Vcl[-1], Vcr[-1], V0[-1]))
-    I0.append(getI0_new(V0[-1], V0[-2]))
-    Vcl.append(getVcl_new(Il[-1], I0[-1], Vcl[-1]))
-    Vcr.append(getVcr_new(Ir[-1], I0[-1], Vcr[-1]))
-        
+    if tls == 0.:
+        solveCircuit(Vcl_0, Vcr[-1])
+    elif trs == 0.:
+        solveCircuit(Vcl[-1], Vcr_0)
+    else:
+        solveCircuit(Vcl[-1], Vcr[-1])
+            
     rand = r.random()    
-    if (rand < getP(Vcl[-1], tls, Vl_th, dV)):
+    if rand < getP(Vcl[-1], tls, Vl_th, dV):        
+        tls = 0. 
+        print('left')
+        continue
+    elif tls == 0.:
         Vcl[-1] = Vcl_0
-        tls = 0.
+        tls = tls + 1.
     else:
         tls = tls + 1.
         
-    if (rand < getP(Vcr[-1], trs, Vr_th, dV)):
-        Vcr[-1] = Vcr_0
+    if (rand < getP(Vcr[-1], trs, Vr_th, dV)):         
         trs = 0.
+        print('right')
+    elif trs == 0.:
+        Vcr[-1] = Vcr_0
+        trs = trs + 1.
     else:
         trs = trs + 1.
 
