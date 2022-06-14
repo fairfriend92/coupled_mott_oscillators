@@ -3,15 +3,16 @@ import random as r
 import matplotlib.pyplot as plt
 
 # Constants
+mix     = 1.00  # Mix factor of new and old V
 Rs      = 1.00  # Sample resistance
 R0      = 1.00  # Load resistance
-C0      = 0.10  # Coupling capacitance
-Cp      = 0.45  # Sample capacitance
-Vl_th   = 0.50  # Left sample V threshold
+C0      = 1.00  # Coupling capacitance
+Cp      = 0.50  # Sample capacitance
+Vl_th   = 0.45  # Left sample V threshold
 Vr_th   = 0.50  # Right sample V threshold
-dV      = 0.01  # Prob. distr. width
-dt      = .001  # Time-step
-sim_len = 2000  # Durantion of sim
+dV      = .005  # Prob. distr. width
+dt      = 0.01  # Time-step
+sim_len = 500  # Durantion of sim
 
 # Starting values
 Vcl_0   = 0.0   # Initial left sample capacitor voltage
@@ -27,7 +28,7 @@ tls = 0.0   # Time since last spike of left device
 trs = 0.0   # Time since last spike of right device
 
 # Pre-factors
-a   = R0*(3.*Rs*Cp + dt)/(3.*R0*Rs*Cp + dt*(R0 - Rs))
+a   = R0*(3.*Rs*Cp + dt)/(3.*R0*Rs*Cp + dt*(R0 + Rs))
 b   = Rs*Cp/(2.*R0*(3.*Rs*Cp + dt))
 c   = Rs*Cp/(3.*Rs*Cp + dt)
 d   = Rs*Cp/(Rs*Cp + dt)
@@ -42,10 +43,10 @@ Vcr = []    # Right sample capacitor voltage
 V0  = []    # Coupling capacitor voltage
 
 def getIl_new(I_new, Vcl_old, Vcr_old, V0_old):
-    return a*(I_new/2. - b*(I_new*dt/Cp - Vcl_old + Vcr_old + 2.*V0_old))
+    return a*(I_new/2. + b*(I_new*dt/Cp - Vcl_old + Vcr_old + 2.*V0_old))
     
 def getIr_new(I_new, Vcl_old, Vcr_old, V0_old):
-    return a*(I_new/2. + b*(-I_new*dt/Cp - Vcl_old + Vcr_old + 2.*V0_old))
+    return a*(I_new/2. - b*(-I_new*dt/Cp - Vcl_old + Vcr_old + 2.*V0_old))
     
 def getV0_new(I_new, Il_new, Ir_new, Vcl_old, Vcr_old, V0_old, I0_new=None):
     if C0 == 0.:
@@ -65,13 +66,13 @@ def getI0_new(V0_new, V0_old, I_new=None, Vcl_old=None, Vcr_old=None, Vcl_new=No
     
 def getVcl_new(Il_new, I0_new, Vcl_old, Vcr_new=None, V0_new=None):
     if Vcr_new is not None:
-        return Vcr_new - V0_new
+        return Vcr_new + V0_new
     else:
         return Vcl_0 if Cp == 0 else d*(Vcl_old + (Il_new + I0_new)*dt/Cp)
     
 def getVcr_new(Ir_new, I0_new, Vcr_old, Vcl_new=None, V0_new=None):
     if Vcl_new is not None:
-        return Vcl_new + V0_new
+        return Vcl_new - V0_new
     else:
         return Vcr_0 if Cp == 0 else d*(Vcr_old + (Ir_new - I0_new)*dt/Cp)
     
@@ -89,45 +90,78 @@ def solveCircuit(Vcl_old, Vcr_old):
     I0.append(getI0_new(V0[-1], V0[-2]))
     Vcl.append(getVcl_new(Il[-1], I0[-1], Vcl_old))
     Vcr.append(getVcr_new(Ir[-1], I0[-1], Vcr_old))
+    
+def mixSolutions(s):
+    if s == 'l':
+        Vcl[-1] = (Vcl[-1] + mix*Vcl[-2])/(1 + mix)
+    elif s == 'r':
+        Vcr[-1] = (Vcr[-1] + mix*Vcr[-2])/(1 + mix)
+    else:
+        Vcl[-1] = (Vcl[-1] + mix*Vcl[-2])/(1 + mix)
+        Vcr[-1] = (Vcr[-1] + mix*Vcr[-2])/(1 + mix)
 
-for I_new in I:
+for I_new in I: 
+    Vcl_old = Vcr_old = 0;
+    
     if len(Vcl) == 0:
         Vcl.append(Vcl_0)
         Vcr.append(Vcr_0)
         V0.append(V0_0)
-
-    solveCircuit(Vcl[-1], Vcr[-1])
+        Vcl_old = Vcl_0
+        Vcr_old = Vcr_0
+    elif tls == 0.:
+        Vcl_old = Vcl_0 
+        Vcr_old = Vcr[-1]
+        #mixSolutions('b')
+    elif trs == 0.:
+        Vcl_old = Vcl[-1]
+        Vcr_old = Vcr_0
+        #mixSolutions('b')
+    else:
+        Vcl_old = Vcl[-1]
+        Vcr_old = Vcr[-1]
+        mixSolutions('b')
+    
+    solveCircuit(Vcl_old, Vcr_old)
+    '''
+    Vcl[-2] = Vcl_0 if tls == 0. else Vcl[-2]
+    Vcr[-2] = Vcr_0 if trs == 0. else Vcr[-2]
+    '''
             
     rand = r.random()    
     if rand < getP(Vcl[-1], tls, Vl_th, dV):        
-        tls = 0. 
+        tls = 0.        
         Vcl[-1] = Vcl_0
+        '''
         I0[-1] = getI0_new(None, V0[-2], I_new, Vcl[-2], None, Vcl[-1], None)
-        V0[-1] = getV0_new(None, None, None, None, None, V0[-2], I0[-1])
-        Ir[-1] = I_new/2. + 1./(2.*R0)*V0[-1]
-        #Vcr[-1] = getVcr_new(None, None, None, Vcl[-1], V0[-1])
-        Vcr[-1] = getVcr_new(Ir[-1], I0[-1], Vcr[-1])
+        V0[-1] = getV0_new(None, None, None, None, None, V0[-2], I0[-1])        
+        Vcr[-1] = getVcr_new(None, None, None, Vcl[-1], V0[-1])
+        #Ir[-1] = I_new/2. + 1./(2.*R0)*V0[-1]
+        #Vcr[-1] = getVcr_new(Ir[-1], I0[-1], Vcr[-1])
+        '''
         print('left')
         continue
     else:
         tls = tls + 1.
         
     if (rand < getP(Vcr[-1], trs, Vr_th, dV)):         
-        trs = 0.
+        trs = 0.        
         Vcr[-1] = Vcr_0
+        '''
         I0[-1] = getI0_new(None, V0[-2], I_new, None, Vcr[-2], None, Vcr[-1])
-        V0[-1] = getV0_new(None, None, None, None, None, V0[-2], I0[-1])
-        Il[-1] = I_new/2. - 1./(2.*R0)*V0[-1]
-        #Vcl[-1] = getVcl_new(None, None, None, Vcr[-1], V0[-1])
-        Vcl[-1] = getVcl_new(Il[-1], I0[-1], Vcl[-1])
+        V0[-1] = getV0_new(None, None, None, None, None, V0[-2], I0[-1])        
+        Vcl[-1] = getVcl_new(None, None, None, Vcr[-1], V0[-1])
+        #Il[-1] = I_new/2. - 1./(2.*R0)*V0[-1]
+        #Vcl[-1] = getVcl_new(Il[-1], I0[-1], Vcl[-1])
+        '''
         print('right')
     else:
         trs = trs + 1.
 
 plt.figure()
 fig, ax = plt.subplots(figsize=(15, 4))
-ax.plot(t, Vcl[:sim_len], color='blue', label='Vcl', marker='.')
-ax.plot(t, Vcr[:sim_len], color='red', label='Vcr', marker='.')
+ax.plot(t, Vcl[:sim_len], color='blue', label='Vcl', marker='s')
+ax.plot(t, Vcr[:sim_len], color='red', label='Vcr', marker='s')
 plt.legend()
 ax.set(xlabel='Time (arb. units)', ylabel='Voltage (arb. units)')
 ax.xaxis.label.set_size(16)
