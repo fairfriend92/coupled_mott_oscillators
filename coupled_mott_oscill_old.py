@@ -3,16 +3,17 @@ import random as r
 import matplotlib.pyplot as plt
 
 # Constants
-mix     = 0.00              # Mix factor of new and old V
+mix     = 1.00              # Mix factor of new and old V
 Rs      = 1.00              # Sample resistance
 R0      = 1.00              # Load resistance
-C0      = 1.00              # Coupling capacitance
+C0      = 1.20              # Coupling capacitance
 Cp      = 0.50              # Sample capacitance
 Vl_th   = 0.45              # Left sample V threshold
 Vr_th   = 0.50              # Right sample V threshold
 dV      = .005              # Prob. distr. width
-dt      = 0.01*(1 + mix)    # Time-step
-sim_len = 300              # Durantion of sim
+dt      = .001*(1 + mix)    # Time-step
+sim_len = 500               # Durantion of sim
+iters   = 100               # Nuber of iterations
 
 # Starting values
 Vcl_0   = 0.0   # Initial left sample capacitor voltage
@@ -27,7 +28,7 @@ dtl = 0.0   # Time since last spike of left device
 dtr = 0.0   # Time since last spike of right device
 
 # Pre-factors
-a   = (R0*(Rs*Cp + dt) + dt*Rs)/((Rs*Cp + dt)*R0)
+a   = (R0*(Rs*Cp + dt) - dt*Rs)/((Rs*Cp + dt)*R0)
 b   = Rs*Cp/(Rs*Cp + dt)
 
 # Lists
@@ -43,26 +44,26 @@ tsr = []    # Spike timings of right device
 
 # Compute current of left device (capacitor + sample)
 def getIl(t):
-    return (Vapp[t] - Vcl[-1])/R0    
+    return (Vapp[t] + Vcl[-1])/R0    
  
 # Compute current of right device (capacitor + sample) 
 def getIr(t):
-    return (Vapp[t] - Vcr[-1])/R0
+    return (Vapp[t] + Vcr[-1])/R0
 
 # Compute voltage of coupling capacitor    
 def getV0():
-    return 0. if C0 == 0. else  V0[-1] + I0[-1]*dt/C0
+    return V0[-1] + I0[-1]*dt/C0
 
 # Compute current of coupling capacitor   
 def getI0():
-    return 0. if C0 == 0. else (Vcr[-1] - Vcl[-1] - V0[-1])/(dt/C0 + 2*b*dt/(Cp*a))
+    return - V0[-1]/(dt/C0 + 2*b*dt/(Cp*a)
 
 # Compute voltage of left capacitor    
-def getVcl(t):
+def getVcl(t, I0_new):
     return b/a*(Vcl[-1] + (Vapp[t]/R0 + I0[-1])*dt/Cp)
 
 # Compute voltage of right capacitor    
-def getVcr(t):
+def getVcr_new(t, I0_new):
     return b/a*(Vcr[-1] + (Vapp[t]/R0 - I0[-1])*dt/Cp)
 
 # Compute probability of firing   
@@ -98,8 +99,8 @@ for t in time:
         Vcr.append(Vcr_0)
         V0.append(Vcl_0 - Vcr_0)
         
-    solveCircuit(t)
-    #mixSolutions()
+    solveCircuit()
+    mixSolutions()
             
     rand = r.random()    
     if rand < getP(Vcl[-1], dtl, Vl_th): 
