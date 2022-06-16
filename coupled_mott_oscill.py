@@ -3,16 +3,17 @@ import random as r
 import matplotlib.pyplot as plt
 
 # Constants
-mix     = 0.50              # Mix factor of new and old V
-Rs      = 1.00              # Sample resistance
-R0      = 1.00              # Load resistance
-C0      = 00.5              # Coupling capacitance
-Cp      = 0.50              # Sample capacitance
-Vl_th   = 0.45              # Left sample V threshold
-Vr_th   = 0.50              # Right sample V threshold
-dV      = .005              # Prob. distr. width
-dt      = .01*(1 + mix)     # Time-step
-sim_len = 600               # Durantion of sim
+mix     = 0.00                  # Mix factor of new and old V
+Rs      = 1.00                  # Sample resistance
+R0      = 1.00                  # Load resistance
+C0      = 10.0                  # Coupling capacitance
+Cp      = 0.50                  # Sample capacitance
+Vl_th   = 0.45                  # Left sample V threshold
+Vr_th   = 0.50                  # Right sample V threshold
+dV      = .005                  # Prob. distr. width
+dt      = .001                  # Time-step
+sim_len = int(2*(1 + mix)/dt)   # Durantion of sim
+tRef    = 5                    # Refractory period of device
 
 # Starting values
 Vcl_0   = 0.0   # Initial left sample capacitor voltage
@@ -45,7 +46,7 @@ tsr     = []    # Spike timings of right device
 
 # Compute current of coupling capacitor   
 def getI0():
-    return 0. if C0 == 0. else (Vcr[-1] - Vcl[-1] - V0[-1])/(+dt/C0 + 2*b*dt/(Cp*a))
+    return 0. if C0 == 0. else (Vcr[-1] - Vcl[-1] - V0[-1])/(+ dt/C0 + 2*b*dt/(Cp*a))
     
 # Compute voltage of coupling capacitor    
 def getV0():
@@ -75,16 +76,17 @@ def getP(V, ts, V_th):
         e = np.exp(-(V - V_th)/dV) 
         return 1. - e/(e + ts/dt) 
         
-def makeFig(x, y, color, xLabel, yLabel, name, yLimTop = None):
+def makeFig(x, y, color, xLabel, yLabel, name, yLimBottom = None, yLimTop = None):
     plt.figure()
     fig, ax = plt.subplots(figsize=(15, 4))
     ax.plot(x, y, color, marker='s')
     ax.set(xlabel=xLabel, ylabel=yLabel)
     ax.xaxis.label.set_size(16)
     ax.yaxis.label.set_size(16)
+    if yLimBottom is not None:
+        ax.set_ylim(bottom=yLimBottom)
     if yLimTop is not None:
         ax.set_ylim(top=yLimTop)
-    #ax.yaxis.set_ticks(np.arange(0, 8, 1))
     ax.tick_params(axis = 'both', which = 'both', labelsize = 16, length = 4)
     fig.tight_layout()
     plt.savefig('./figures/' + name + '_C0=' + str(C0) + '.pdf') 
@@ -110,9 +112,15 @@ for t in time:
         Vcl.append(Vcl_0)
         Vcr.append(Vcr_0)
         V0.append(Vcl_0 - Vcr_0)
-        
+    
     solveCircuit(t)
-    mixSolutions()
+    
+    # Relaxation of the device to the insulating phase
+    Vcl[-1] = Vcl[-1] if dtl > tRef else Vcl_0
+    Vcr[-1] = Vcr[-1] if dtr > tRef else Vcr_0
+    
+    if mix != 0.:
+        mixSolutions()
              
     rand = r.random()    
     if rand < getP(Vcl[-1], dtl, Vl_th): 
@@ -131,8 +139,8 @@ for t in time:
         
     t = t + 1
 
-makeFig(time, Vcl[:sim_len], 'black', 'Time (arb. units)', 'Voltage (arb. units)', 'Vcl', 0.5)
-makeFig(time, Vcr[:sim_len], 'red', 'Time (arb. units)', 'Voltage (arb. units)', 'Vcr', 0.5)
+makeFig(time, Vcl[:sim_len], 'black', 'Time (arb. units)', 'Voltage (arb. units)', 'Vcl', 0.0, 0.5)
+makeFig(time, Vcr[:sim_len], 'red', 'Time (arb. units)', 'Voltage (arb. units)', 'Vcr', 0.0, 0.5)
 
 makeFig(time, Il_out, 'black', 'Time (arb. units)', 'Ouput current (arb. units)', 'Il_out')
 makeFig(time, Ir_out, 'red', 'Time (arb. units)', 'Output current (arb. units)', 'Ir_out')
