@@ -3,16 +3,16 @@ import random as r
 import matplotlib.pyplot as plt
 
 # Constants
-mix     = 0.00              # Mix factor of new and old V
+mix     = 0.50              # Mix factor of new and old V
 Rs      = 1.00              # Sample resistance
 R0      = 1.00              # Load resistance
-C0      = 1.00              # Coupling capacitance
+C0      = 00.5              # Coupling capacitance
 Cp      = 0.50              # Sample capacitance
 Vl_th   = 0.45              # Left sample V threshold
 Vr_th   = 0.50              # Right sample V threshold
 dV      = .005              # Prob. distr. width
-dt      = 0.01*(1 + mix)    # Time-step
-sim_len = 300              # Durantion of sim
+dt      = .01*(1 + mix)     # Time-step
+sim_len = 600               # Durantion of sim
 
 # Starting values
 Vcl_0   = 0.0   # Initial left sample capacitor voltage
@@ -31,31 +31,25 @@ a   = (R0*(Rs*Cp + dt) + dt*Rs)/((Rs*Cp + dt)*R0)
 b   = Rs*Cp/(Rs*Cp + dt)
 
 # Lists
-I   = []    # Total current
-Il  = []    # Left branch current
-Ir  = []    # Right branch current
-I0  = []    # Coupling capacitor current
-Vcl = []    # Left sample capacitor voltage
-Vcr = []    # Right sample capacitor voltage
-V0  = []    # Coupling capacitor voltage
-tsl = []    # Spike timings of left device
-tsr = []    # Spike timings of right device
-
-# Compute current of left device (capacitor + sample)
-def getIl(t):
-    return (Vapp[t] - Vcl[-1])/R0    
- 
-# Compute current of right device (capacitor + sample) 
-def getIr(t):
-    return (Vapp[t] - Vcr[-1])/R0
-
-# Compute voltage of coupling capacitor    
-def getV0():
-    return 0. if C0 == 0. else  V0[-1] + I0[-1]*dt/C0
+I       = []    # Total current
+Il      = []    # Left branch current
+Ir      = []    # Right branch current
+Il_out  = []    # Left device output current
+Ir_out  = []    # Right device output current
+I0      = []    # Coupling capacitor current
+Vcl     = []    # Left sample capacitor voltage
+Vcr     = []    # Right sample capacitor voltage
+V0      = []    # Coupling capacitor voltage
+tsl     = []    # Spike timings of left device
+tsr     = []    # Spike timings of right device
 
 # Compute current of coupling capacitor   
 def getI0():
-    return 0. if C0 == 0. else (Vcr[-1] - Vcl[-1] - V0[-1])/(dt/C0 + 2*b*dt/(Cp*a))
+    return 0. if C0 == 0. else (Vcr[-1] - Vcl[-1] - V0[-1])/(+dt/C0 + 2*b*dt/(Cp*a))
+    
+# Compute voltage of coupling capacitor    
+def getV0():
+    return 0. if C0 == 0. else  V0[-1] + I0[-1]*dt/C0
 
 # Compute voltage of left capacitor    
 def getVcl(t):
@@ -64,6 +58,14 @@ def getVcl(t):
 # Compute voltage of right capacitor    
 def getVcr(t):
     return b/a*(Vcr[-1] + (Vapp[t]/R0 - I0[-1])*dt/Cp)
+    
+# Compute current of left device (capacitor + sample)
+def getIl(t):
+    return (Vapp[t] - Vcl[-1])/R0    
+ 
+# Compute current of right device (capacitor + sample) 
+def getIr(t):
+    return (Vapp[t] - Vcr[-1])/R0
 
 # Compute probability of firing   
 def getP(V, ts, V_th):
@@ -72,6 +74,20 @@ def getP(V, ts, V_th):
     else:
         e = np.exp(-(V - V_th)/dV) 
         return 1. - e/(e + ts/dt) 
+        
+def makeFig(x, y, color, xLabel, yLabel, name, yLimTop = None):
+    plt.figure()
+    fig, ax = plt.subplots(figsize=(15, 4))
+    ax.plot(x, y, color, marker='s')
+    ax.set(xlabel=xLabel, ylabel=yLabel)
+    ax.xaxis.label.set_size(16)
+    ax.yaxis.label.set_size(16)
+    if yLimTop is not None:
+        ax.set_ylim(top=yLimTop)
+    #ax.yaxis.set_ticks(np.arange(0, 8, 1))
+    ax.tick_params(axis = 'both', which = 'both', labelsize = 16, length = 4)
+    fig.tight_layout()
+    plt.savefig('./figures/' + name + '_C0=' + str(C0) + '.pdf') 
 
 # Solve equations of the circuit
 def solveCircuit(t):
@@ -80,17 +96,14 @@ def solveCircuit(t):
     Vcl.append(getVcl(t))
     Vcr.append(getVcr(t))
     Il.append(getIl(t))
-    Ir.append(getIr(t))
+    Ir.append(getIr(t))    
+    Il_out.append(Il[-1] + I0[-1])
+    Ir_out.append(Ir[-1] - I0[-1])
 
 # Mix the last and penultimate voltage values    
-def mixSolutions(s = 'none'):
-    if s == 'l':
-        Vcl[-1] = (Vcl[-1] + mix*Vcl[-2])/(1 + mix)
-    elif s == 'r':
-        Vcr[-1] = (Vcr[-1] + mix*Vcr[-2])/(1 + mix)
-    else:
-        Vcl[-1] = (Vcl[-1] + mix*Vcl[-2])/(1 + mix)
-        Vcr[-1] = (Vcr[-1] + mix*Vcr[-2])/(1 + mix)
+def mixSolutions():
+    Vcl[-1] = (Vcl[-1] + mix*Vcl[-2])/(1 + mix)
+    Vcr[-1] = (Vcr[-1] + mix*Vcr[-2])/(1 + mix)
 
 for t in time:     
     if len(Vcl) == 0:
@@ -99,8 +112,8 @@ for t in time:
         V0.append(Vcl_0 - Vcr_0)
         
     solveCircuit(t)
-    #mixSolutions()
-            
+    mixSolutions()
+             
     rand = r.random()    
     if rand < getP(Vcl[-1], dtl, Vl_th): 
         tsl.append(t)
@@ -118,33 +131,11 @@ for t in time:
         
     t = t + 1
 
-plt.figure()
-fig, ax = plt.subplots(figsize=(15, 4))
-ax.plot(time, Vcl[:sim_len], color='black', label='Vcl', marker='s')
-ax.plot(time, Vcr[:sim_len], color='red', label='Vcr', marker='s')
-plt.legend()
-ax.set(xlabel='Time (arb. units)', ylabel='Voltage (arb. units)')
-ax.xaxis.label.set_size(16)
-ax.yaxis.label.set_size(16)
-#ax.set_ylim(top=8)
-#ax.yaxis.set_ticks(np.arange(0, 8, 1))
-ax.tick_params(axis = 'both', which = 'both', labelsize = 16, length = 4)
-fig.tight_layout()
-plt.savefig('V(t).pdf')  
+makeFig(time, Vcl[:sim_len], 'black', 'Time (arb. units)', 'Voltage (arb. units)', 'Vcl', 0.5)
+makeFig(time, Vcr[:sim_len], 'red', 'Time (arb. units)', 'Voltage (arb. units)', 'Vcr', 0.5)
 
-plt.figure()
-fig, ax = plt.subplots(figsize=(15, 4))
-ax.plot(time, Il, color='black', label='Il', marker='s')
-ax.plot(time, Ir, color='red', label='Ir', marker='s')
-plt.legend()
-ax.set(xlabel='Time (arb. units)', ylabel='Output current (arb. units)')
-ax.xaxis.label.set_size(16)
-ax.yaxis.label.set_size(16)
-#ax.set_ylim(top=8)
-#ax.yaxis.set_ticks(np.arange(0, 8, 1))
-ax.tick_params(axis = 'both', which = 'both', labelsize = 16, length = 4)
-fig.tight_layout()
-plt.savefig('I(t).pdf') 
+makeFig(time, Il_out, 'black', 'Time (arb. units)', 'Ouput current (arb. units)', 'Il_out')
+makeFig(time, Ir_out, 'red', 'Time (arb. units)', 'Output current (arb. units)', 'Ir_out')
     
     
     
