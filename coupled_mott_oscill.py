@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 
 # Parameters
 C0Array     = [0., 0.5, 10.]    # Coupling capacitance
-C0Array     = [0.]
+#C0Array     = [0.]
 #C0Array     = [0.2, 1.0] + list(np.arange(5., 60., 10.))
-plotTrace   = False           # Plot voltage and current traces?
-plotHist    = True            # Plot histograms?
+plotTrace   = True           # Plot voltage and current traces?
+plotHist    = False            # Plot histograms?
 
 # Constants
 Rs      = 1.00          # Sample resistance
@@ -17,10 +17,10 @@ Vl_th   = 0.45          # Left sample V threshold
 Vr_th   = 0.50          # Right sample V threshold
 dV      = .005          # Prob. distr. width
 dt      = .001          # Time-step for traces
-dt      = .01           # ...for disruptions density and hist
+#dt      = .01           # ...for disruptions density and hist
 sim_len = int(8/dt)     # Durantion of sim for traces
-sim_len = int(500/dt)   # ... for disruptions density
-sim_len = int(1000/dt)  # ... for histograms
+#sim_len = int(500/dt)   # ... for disruptions density
+#sim_len = int(1000/dt)  # ... for histograms
 tRef    = 5             # Refractory period of device
 
 # Starting values
@@ -99,23 +99,30 @@ def solveCircuit(t):
     Ir_out.append(Ir[-1] - I0[-1])
     
 # Create 2D plot 
-def makeFig(x, y, color, xLabel, yLabel, name, yLimBottom = None, yLimTop = None):    
+def makeFig(x, y, color, xLabel, yLabel, name, 
+            yLimBottom = None, yLimTop = None, xLimLeft = None, xLimRight = None):    
     plt.figure()
     if name == 'err':
         fig, ax = plt.subplots(figsize=(9, 6))
     else:
-        fig, ax = plt.subplots(figsize=(15, 4))
+        fig, ax = plt.subplots(figsize=(8, 4))
     ax.plot(x, y, color, marker='s')
     ax.set(xlabel=xLabel, ylabel=yLabel)
     size = 24 
     ax.xaxis.label.set_size(size)
     ax.yaxis.label.set_size(size)
+    
     if name == 'err':
         ax.set_xscale('log')
     if yLimBottom is not None:
         ax.set_ylim(bottom=yLimBottom)
     if yLimTop is not None:
         ax.set_ylim(top=yLimTop)
+    if xLimLeft is not None:
+        ax.set_xlim(left=xLimLeft)
+    if xLimRight is not None:
+        ax.set_xlim(right=xLimRight)
+        
     ax.tick_params(axis = 'both', which = 'both', labelsize = size, length = int(size/6))
     fig.tight_layout()
     if name == 'err':
@@ -199,12 +206,12 @@ for C0 in C0Array:
     
     if plotTrace:
         # Plot voltage    
-        makeFig(time, Vcl[:sim_len], 'black', 'Time (arb. units)', 'Voltage (arb. units)', 'Vcl', 0.0, 0.5)
-        makeFig(time, Vcr[:sim_len], 'red', 'Time (arb. units)', 'Voltage (arb. units)', 'Vcr', 0.0, 0.5)
+        makeFig(time, Vcl[:sim_len], 'black', 'Time (arb. units)', 'Voltage (arb. units)', 'Vcl', 0.0, 0.5, 0, 4000)
+        makeFig(time, Vcr[:sim_len], 'red', 'Time (arb. units)', 'Voltage (arb. units)', 'Vcr', 0.0, 0.5, 0, 4000)
         
         # Plot current
-        makeFig(time, Il_out, 'black', 'Time (arb. units)', 'Ouput current (arb. units)', 'Il_out', 0.0)
-        makeFig(time, Ir_out, 'red', 'Time (arb. units)', 'Output current (arb. units)', 'Ir_out', 0.0)
+        makeFig(time, Il_out, 'black', 'Time (arb. units)', 'Current (arb. units)', 'Il_out', 0.0)
+        makeFig(time, Ir_out, 'red', 'Time (arb. units)', 'Current (arb. units)', 'Ir_out', 0.0)
     
     if plotHist:
         # Plot ISI histograms    
