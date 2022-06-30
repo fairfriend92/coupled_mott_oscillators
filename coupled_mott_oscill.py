@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 # Parameters
 C0Array     = [0., 0.5, 10.]    # Coupling capacitance
 #C0Array     = [0.]
-#C0Array     = [0.2, 1.0] + list(np.arange(5., 60., 10.))
+C0Array     = [0.2, 1.0] + list(np.arange(5., 60., 10.))
 plotTrace   = True           # Plot voltage and current traces?
 plotHist    = False            # Plot histograms?
 
@@ -17,9 +17,9 @@ Vl_th   = 0.45          # Left sample V threshold
 Vr_th   = 0.50          # Right sample V threshold
 dV      = .005          # Prob. distr. width
 dt      = .001          # Time-step for traces
-#dt      = .01           # ...for disruptions density and hist
+dt      = .01           # ...for disruptions density and hist
 sim_len = int(8/dt)     # Durantion of sim for traces
-#sim_len = int(500/dt)   # ... for disruptions density
+sim_len = int(500/dt)   # ... for disruptions density
 #sim_len = int(1000/dt)  # ... for histograms
 tRef    = 5             # Refractory period of device
 
@@ -101,7 +101,6 @@ def solveCircuit(t):
 # Create 2D plot 
 def makeFig(x, y, color, xLabel, yLabel, name, 
             yLimBottom = None, yLimTop = None, xLimLeft = None, xLimRight = None):    
-    plt.figure()
     if name == 'err':
         fig, ax = plt.subplots(figsize=(9, 6))
     else:
