@@ -57,7 +57,7 @@ err     = []    # Number of disruptions in the spiking sequence
 
 # Compute current of coupling capacitor   
 def getI0():
-    return 0. if C0 == 0. else (Vcr[-1] - Vcl[-1] - V0[-1])/(+ dt/C0 + 2*b*dt/(Cp*a))
+    return 0. if C0 == 0. else (b/a*(Vcr[-1] - Vcl[-1]) - V0[-1])/(+ dt/C0 + 2*b*dt/(Cp*a))
     
 # Compute voltage of coupling capacitor    
 def getV0():
