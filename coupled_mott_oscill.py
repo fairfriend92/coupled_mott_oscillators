@@ -3,11 +3,13 @@ import random as r
 import matplotlib.pyplot as plt
 
 # Parameters
-C0Array     = [0., 0.5, 10.]    # Coupling capacitance
+C0Array     = [1., 5., 15.]    # Coupling capacitance
 #C0Array     = [0.]
-C0Array     = [0.2, 1.0] + list(np.arange(5., 60., 10.))
-plotTrace   = True           # Plot voltage and current traces?
-plotHist    = False            # Plot histograms?
+#C0Array     = [0.2, 1.0] + list(np.arange(5., 60., 10.))
+C0Array     = [0.5, 10.0]
+plotTrace   = False         # Plot voltage and current traces?
+plotHist    = True         # Plot histograms?
+plotErr     = False          # Plot error density
 
 # Constants
 Rs      = 1.00          # Sample resistance
@@ -17,7 +19,7 @@ Vl_th   = 0.45          # Left sample V threshold
 Vr_th   = 0.50          # Right sample V threshold
 dV      = .005          # Prob. distr. width
 dt      = .001          # Time-step for traces
-dt      = .01           # ...for disruptions density and hist
+#dt      = .01           # ...for disruptions density and hist
 sim_len = int(8/dt)     # Durantion of sim for traces
 sim_len = int(500/dt)   # ... for disruptions density
 #sim_len = int(1000/dt)  # ... for histograms
@@ -52,7 +54,9 @@ V0      = []    # Coupling capacitor voltage
 isil    = []    # Inter spike intervals of left device
 isir    = []    # Inter spike intervals of right device
 Vsl     = []    # Left device voltage when spiking
+Vsrl    = []    # Right device voltage when left is spiking
 Vsr     = []    # Right device voltage when spiking
+Vslr    = []    # Left device voltage when right is spiking
 err     = []    # Number of disruptions in the spiking sequence
 
 # Compute current of coupling capacitor   
@@ -183,6 +187,7 @@ for C0 in C0Array:
             err[-1] = err[-1] + 1. if dtl < dtr else err[-1]
             dtl = 0.
             Vsl.append(Vcl[-1])
+            Vsrl.append(Vcr[-1])
             Vcl[-1] = Vcl_0
             continue
         else:
@@ -194,6 +199,7 @@ for C0 in C0Array:
             err[-1] = err[-1] + 1. if dtr < dtl else err[-1]
             dtr = 0.
             Vsr.append(Vcr[-1])
+            Vslr.append(Vcl[-1])
             Vcr[-1] = Vcr_0
         else:
             dtr = dtr + 1.
@@ -213,15 +219,20 @@ for C0 in C0Array:
         makeFig(time, Ir_out, 'red', 'Time (arb. units)', 'Current (arb. units)', 'Ir_out', 0.0)
     
     if plotHist:
-        # Plot ISI histograms    
-        makeHist(isil, 100*dt, 'black', 'Inter spike intervals (arb. units)', 'Counts', 'ISI_l', 40, 75, 0, 600)
-        makeHist(isir, 100*dt, 'red', 'Inter spike intervals (arb. units)', 'Counts', 'ISI_r', 40, 75, 0, 600)
+        # Plot ISI histograms   
+        '''
+        binWidth = 1e3*dt # Fig. 1
+        binWidth = 5e3*dt # Fig. 3
+        makeHist(isil, binWidth, 'black', 'Inter spike intervals (arb. units)', 'Counts', 'ISI_l', 0, 1600, 0, 80)
+        makeHist(isir, binWidth, 'red', 'Inter spike intervals (arb. units)', 'Counts', 'ISI_r', 0, 1600, 0, 80)
+        '''
         
-        # Plot spiking voltage histograms    
-        '''
-        makeHist(Vsl, dV/2, 'black', 'Voltage (arb. units)', 'Counts', 'Vsl')#, 0.0, 150)
-        makeHist(Vsr, dV/2, 'red', 'Voltage (arb. units)', 'Counts', 'Vsr')#, 0.0, 150)
-        '''
+        # Plot spiking voltage histograms           
+        binWidth = 0.25*dV  # Fig. 1
+        makeHist(Vsl, binWidth, 'black', 'Voltage (arb. units)', 'Counts', 'Vsl', 0.2, 0.4, 0, 100)
+        makeHist(Vsr, binWidth, 'red', 'Voltage (arb. units)', 'Counts', 'Vsr', 0.2, 0.45, 0, 80)
+        makeHist(Vsrl, binWidth, 'orange', 'Voltage (arb. units)', 'Counts', 'Vsrl', 0.2, 0.45, 0, 80)
+        makeHist(Vslr, binWidth, 'blue', 'Voltage (arb. units)', 'Counts', 'Vslr', 0.2, 0.4, 0, 100)
     
     # Compute spike timings from inter spike intervals
     tsl = []
@@ -253,8 +264,11 @@ for C0 in C0Array:
     isil    = []    
     isir    = []  
     Vsl     = []
+    Vsrl    = []
     Vsr     = []
+    Vslr    = []
 
-# Plot density of disruption events    
-makeFig(C0Array, err, 'black', 'Capacitance (arb. units)', 'Disruptions density (%)', 'err', 5, 35) 
+# Plot density of disruption events  
+if plotErr:  
+    makeFig(C0Array, err, 'black', 'Capacitance (arb. units)', 'Disruptions density (%)', 'err', 5, 35) 
     
